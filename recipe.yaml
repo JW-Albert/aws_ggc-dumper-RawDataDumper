@@ -1,0 +1,42 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "imcloud.imphm.dumper.RawDataDumper"
+ComponentVersion: "1.0.0"
+ComponentDescription: "imPHM RawDataDumper"
+ComponentPublisher: "imCloud Co., Ltd."
+ComponentConfiguration:
+  DefaultConfiguration:
+    LogLevel: "INFO"
+    RawDataTopic: "/topic/local/daq/nidaq/rawdata"
+    ShadowName: "imPHMGPIOState"
+    WriteRule: "GPIOState-0111"
+    SaveDirectory: "/mnt/rawdata"
+    accessControl:
+      aws.greengrass.ShadowManager:
+        imcloud.imphm.dumper.RawDataDumper:shadow:1:
+          policyDescription: "Allows access to DIO shadow"
+          operations:
+            - "aws.greengrass#UpdateThingShadow"
+            - "aws.greengrass#GetThingShadow"
+          resources:
+          # - $aws/things/{iot:thingName}/shadow/name/imPHMGPIOState #FIXME - This is not working, so temporarily using hardcoded thing name
+            - $aws/things/MDI-Dev/shadow/name/imPHMGPIOState
+      aws.greengrass.ipc.pubsub:
+        imcloud.imphm.dumper.RawDataDumper:pubsub:1:
+          policyDescription: "Allows RawDataDumper to publish to the local pubsub topic"
+          operations:
+            - aws.greengrass#SubscribeToTopic
+            - aws.greengrass#PublishToTopic
+          resources:
+            - $aws/things/MDI-Dev/shadow/name/imPHMGPIOState/update/accepted
+            - "/topic/local/daq/nidaq/rawdata"
+Manifests:
+  - Platform:
+      os: all
+    Artifacts:
+      - Uri: "s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/imphm-aws_ggc-dumper-RawDataDumper.zip"
+        Unarchive: ZIP
+    Lifecycle:
+      run: 
+        Script: "python3 -u {artifacts:decompressedPath}/imphm-aws_ggc-dumper-RawDataDumper/src/main.py --thing-name {iot:thingName} --shadow-name {configuration:/ShadowName} --log-level {configuration:/LogLevel} --rawdata-topic {configuration:/RawDataTopic} --write-rule {configuration:/WriteRule} --save-directory {configuration:/SaveDirectory}"
+        RequiresPrivilege: true
